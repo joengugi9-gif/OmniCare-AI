@@ -1,48 +1,57 @@
+# ====================
 # Node.js dependencies
+# ====================
 node_modules/
 npm-debug.log
 yarn-error.log
 package-lock.json
 yarn.lock
 
-# Next.js build folders
-.next/
-out/
-build/
+# ====================
+# Next.js frontend
+# ====================
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/cache/
+frontend/components/build/
+frontend/public/*.ico
+frontend/public/*.png
+frontend/public/*.svg
+frontend/public/*.webp
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/tsconfig.tsbuildinfo
 
-# Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ====================
+# Backend (Node.js / Supabase / Express)
+# ====================
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+backend/.tsbuildinfo
+backend/logs/
+backend/*.log
+backend/.cache/
 
-# VS Code settings
+# ====================
+# VS Code
+# ====================
 .vscode/
 
-# Logs
-logs/
-*.log
-*.log.*
-
-# Mac OS system files
+# ====================
+# System files
+# ====================
 .DS_Store
+Thumbs.db
 
-# Tailwind cache
-.cache/
-
-# Components/build folders
-components/build/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional: public static files that are generated
-public/*.ico
-public/*.png
-public/*.svg
-public/*.webp
-
-# Ignore coverage reports
+# ====================
+# Optional: coverage
+# ====================
 coverage/
-
