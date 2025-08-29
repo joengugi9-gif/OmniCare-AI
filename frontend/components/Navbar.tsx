@@ -51,8 +51,12 @@ export default function Navbar() {
               {user.user_metadata?.full_name || user.email.split("@")[0]}
             </span>
 
+            {/* Navigation links for logged-in users */}
             <Link href="/dashboard" className="hover:text-purple-300 transition">
               Dashboard
+            </Link>
+            <Link href="/profile" className="hover:text-purple-300 transition">
+              Profile
             </Link>
             <Link href="/chat" className="hover:text-purple-300 transition">
               Chat
