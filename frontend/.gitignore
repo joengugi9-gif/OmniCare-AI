@@ -1,57 +1,29 @@
-# ====================
-# Node.js dependencies
-# ====================
+# Node & Next.js
 node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
+.next/
+out/
+dist/
+build/
 
-# ====================
-# Next.js frontend
-# ====================
-frontend/.next/
-frontend/out/
-frontend/build/
-frontend/cache/
-frontend/components/build/
-frontend/public/*.ico
-frontend/public/*.png
-frontend/public/*.svg
-frontend/public/*.webp
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/tsconfig.tsbuildinfo
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
 
-# ====================
-# Backend (Node.js / Supabase / Express)
-# ====================
-backend/node_modules/
-backend/.env
-backend/.env.local
-backend/.env.development.local
-backend/.env.test.local
-backend/.env.production.local
-backend/.tsbuildinfo
-backend/logs/
-backend/*.log
-backend/.cache/
+# Env files
+.env
+.env.local
+.env.*.local
 
-# ====================
-# VS Code
-# ====================
-.vscode/
-
-# ====================
 # System files
-# ====================
 .DS_Store
 Thumbs.db
 
-# ====================
-# Optional: coverage
-# ====================
-coverage/
+# IDEs
+.vscode/
+.idea/
+
+# Supabase generated files
+supabase/.temp
