@@ -1,12 +1,48 @@
-# Node
+# Node.js dependencies
 node_modules/
 npm-debug.log
+yarn-error.log
 package-lock.json
+yarn.lock
 
-# Next.js
+# Next.js build folders
 .next/
 out/
 build/
 
-# VS Code
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# VS Code settings
 .vscode/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Mac OS system files
+.DS_Store
+
+# Tailwind cache
+.cache/
+
+# Components/build folders
+components/build/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional: public static files that are generated
+public/*.ico
+public/*.png
+public/*.svg
+public/*.webp
+
+# Ignore coverage reports
+coverage/
+
