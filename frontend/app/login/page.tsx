@@ -27,7 +27,7 @@ export default function LoginPage() {
     }
 
     if (data.session) {
-      // Redirect to dashboard after successful login
+      // ✅ Redirect to dashboard after successful login
       router.push("/dashboard");
     } else {
       alert("Login failed. Please check your credentials.");
