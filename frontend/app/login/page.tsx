@@ -8,62 +8,73 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+    setLoading(false);
+
     if (error) {
-      setError(error.message);
+      alert(error.message);
+      return;
+    }
+
+    if (data.session) {
+      // Redirect to dashboard after successful login
+      router.push("/dashboard");
     } else {
-      router.push("/dashboard"); // success → redirect
+      alert("Login failed. Please check your credentials.");
     }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="bg-black/70 p-8 rounded-2xl shadow-xl w-full max-w-md border border-purple-500">
-        <h1 className="text-3xl font-bold text-center text-purple-400 mb-6">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black">
+      <div className="bg-black/50 p-8 rounded-xl shadow-lg w-full max-w-md backdrop-blur-md">
+        <h1 className="text-3xl text-purple-400 font-bold mb-6 text-center">
           OmniCare AI Login
         </h1>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-purple-400"
+            required
+            className="p-3 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:border-purple-400"
+            required
+            className="p-3 rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
-          {error && <p className="text-red-400 text-sm">{error}</p>}
           <button
             type="submit"
-            className="w-full py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition text-white font-semibold"
+            disabled={loading}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-md transition"
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
-          <p className="mt-4 text-center">
-  Don’t have an account? <a href="/signup" className="text-purple-400">Sign Up</a>
-</p>
-
-<p className="mt-2 text-center">
-  Forgot password? <a href="/reset-password" className="text-purple-400">Reset</a>
-</p>
-
         </form>
+        <p className="text-white mt-4 text-center">
+          Don't have an account?{" "}
+          <a
+            href="/signup"
+            className="text-purple-400 hover:underline font-semibold"
+          >
+            Sign Up
+          </a>
+        </p>
       </div>
-    </main>
+    </div>
   );
 }
