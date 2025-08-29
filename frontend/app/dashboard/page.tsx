@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import TicketsFeed from "@/components/TicketsFeed";
 
 // Reusable KPI card component
 function KpiCard({ title, value, icon }: { title: string; value: number; icon: string }) {
@@ -123,6 +124,11 @@ export default function Dashboard() {
             Assign Task
           </button>
         </div>
+      </div>
+
+      {/* Tickets Feed */}
+      <div className="mb-8">
+        <TicketsFeed />
       </div>
 
       {/* Recent Activity Table */}
