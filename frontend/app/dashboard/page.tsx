@@ -2,117 +2,155 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
-export default function Dashboard() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [kpis, setKpis] = useState({
-    customers: 0,
-    activeTickets: 0,
-    aiSuggestions: 0,
-    costSaved: 0,
-  });
-  const [aiList, setAiList] = useState([]);
-
-  useEffect(() => {
-    // Get logged-in user
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push("/login");
-      setUser(data.session?.user);
-    });
-
-    // Fetch KPIs from Supabase
-    async function fetchKPIs() {
-      const { data: customers } = await supabase.from("customers").select("*");
-      const { data: tickets } = await supabase.from("tickets").select("*").eq("status", "active");
-      const { data: aiSuggestions } = await supabase.from("ai_suggestions").select("*").eq("status", "pending");
-      const { data: costs } = await supabase.from("automation_costs").select("*");
-
-      setKpis({
-        customers: customers?.length || 0,
-        activeTickets: tickets?.length || 0,
-        aiSuggestions: aiSuggestions?.length || 0,
-        costSaved: costs?.reduce((sum, c) => sum + c.amount_saved, 0) || 0,
-      });
-
-      setAiList(aiSuggestions || []);
-    }
-
-    fetchKPIs();
-  }, []);
-
-  const implementSuggestion = async (id: string) => {
-    await supabase.from("ai_suggestions").update({ status: "implemented" }).eq("id", id);
-    setAiList(prev => prev.filter(s => s.id !== id));
-  };
-
-  const chartData = [
-    { name: "Jan", tickets: 20 },
-    { name: "Feb", tickets: 45 },
-    { name: "Mar", tickets: 30 },
-    { name: "Apr", tickets: 60 },
-    { name: "May", tickets: 50 },
-  ];
-
+// Reusable KPI card component
+function KpiCard({ title, value, icon }: { title: string; value: number; icon: string }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-purple-900 text-white p-8 pt-32 font-sans">
-      <h1 className="text-3xl font-bold mb-6">Welcome, {user?.email.split("@")[0]}</h1>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-black/60 p-6 rounded-lg shadow-md backdrop-blur-md">
-          <h2 className="text-lg font-semibold">Customers</h2>
-          <p className="text-2xl mt-2">{kpis.customers}</p>
-        </div>
-        <div className="bg-black/60 p-6 rounded-lg shadow-md backdrop-blur-md">
-          <h2 className="text-lg font-semibold">Active Tickets</h2>
-          <p className="text-2xl mt-2">{kpis.activeTickets}</p>
-        </div>
-        <div className="bg-black/60 p-6 rounded-lg shadow-md backdrop-blur-md">
-          <h2 className="text-lg font-semibold">AI Suggestions</h2>
-          <p className="text-2xl mt-2">{kpis.aiSuggestions}</p>
-        </div>
-        <div className="bg-black/60 p-6 rounded-lg shadow-md backdrop-blur-md">
-          <h2 className="text-lg font-semibold">Cost Saved ($)</h2>
-          <p className="text-2xl mt-2">{kpis.costSaved}</p>
-        </div>
-      </div>
-
-      {/* AI Suggestions Panel */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">AI Recommendations</h2>
-        <div className="space-y-4">
-          {aiList.map((s: any) => (
-            <div key={s.id} className="bg-black/50 p-4 rounded-md flex justify-between items-center">
-              <span>{s.title}</span>
-              <button
-                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-1 rounded-md"
-                onClick={() => implementSuggestion(s.id)}
-              >
-                Implement
-              </button>
-            </div>
-          ))}
-          {aiList.length === 0 && <p className="text-gray-400">No pending AI suggestions.</p>}
-        </div>
-      </div>
-
-      {/* Analytics Chart */}
-      <div className="bg-black/60 p-6 rounded-lg shadow-md backdrop-blur-md">
-        <h2 className="text-2xl font-bold mb-4">Tickets Over Time</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={chartData}>
-            <XAxis dataKey="name" stroke="#ccc" />
-            <YAxis stroke="#ccc" />
-            <Tooltip />
-            <Line type="monotone" dataKey="tickets" stroke="#a855f7" strokeWidth={3} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+    <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 flex flex-col items-center w-40 shadow-lg">
+      <div className="text-purple-400 text-3xl mb-2">{icon}</div>
+      <div className="text-white font-semibold text-lg">{title}</div>
+      <div className="text-white font-bold text-xl">{value}</div>
     </div>
   );
 }
 
+export default function Dashboard() {
+  const [customers, setCustomers] = useState(0);
+  const [openTickets, setOpenTickets] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+  const [aiTasks, setAiTasks] = useState(0);
+  const [salesData, setSalesData] = useState<any[]>([]);
+  const [ticketsData, setTicketsData] = useState<any[]>([]);
+
+  // Fetch dashboard data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      // Customers count
+      const { count: customerCount } = await supabase
+        .from("customers")
+        .select("*", { count: "exact" });
+      setCustomers(customerCount || 0);
+
+      // Open tickets
+      const { count: ticketsCount } = await supabase
+        .from("tickets")
+        .select("*", { count: "exact" })
+        .eq("status", "open");
+      setOpenTickets(ticketsCount || 0);
+
+      // Revenue
+      const { data: sales } = await supabase.from("sales").select("amount");
+      const totalRevenue = sales?.reduce((sum, s) => sum + s.amount, 0) || 0;
+      setRevenue(totalRevenue);
+
+      // AI tasks completed
+      const { count: tasksCount } = await supabase
+        .from("ai_tasks")
+        .select("*", { count: "exact" })
+        .eq("status", "completed");
+      setAiTasks(tasksCount || 0);
+
+      // Prepare sales chart data (group by day)
+      const salesChartData = sales?.map((s: any, i: number) => ({
+        day: `Day ${i + 1}`,
+        amount: s.amount,
+      })) || [];
+      setSalesData(salesChartData);
+
+      // Prepare tickets chart data
+      const { data: tickets } = await supabase.from("tickets").select("created_at");
+      const ticketsChartData = tickets?.map((t: any, i: number) => ({
+        day: `Day ${i + 1}`,
+        tickets: 1, // count each ticket
+      })) || [];
+      setTicketsData(ticketsChartData);
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div className="p-6 pt-24 bg-gradient-to-br from-gray-900 via-purple-900 to-black min-h-screen text-white">
+      {/* KPI Cards */}
+      <div className="flex gap-4 mb-8 flex-wrap">
+        <KpiCard title="Customers" value={customers} icon="👥" />
+        <KpiCard title="Open Tickets" value={openTickets} icon="📩" />
+        <KpiCard title="Revenue" value={revenue} icon="💰" />
+        <KpiCard title="AI Tasks Done" value={aiTasks} icon="🤖" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Sales Chart */}
+        <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 shadow-lg">
+          <h2 className="text-purple-400 font-semibold mb-2">Sales Trend</h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={salesData}>
+              <XAxis dataKey="day" stroke="#ddd" />
+              <YAxis stroke="#ddd" />
+              <Tooltip />
+              <Line type="monotone" dataKey="amount" stroke="#9f7aea" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Tickets Chart */}
+        <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 shadow-lg">
+          <h2 className="text-purple-400 font-semibold mb-2">Tickets Trend</h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={ticketsData}>
+              <XAxis dataKey="day" stroke="#ddd" />
+              <YAxis stroke="#ddd" />
+              <Tooltip />
+              <Bar dataKey="tickets" fill="#9f7aea" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 shadow-lg mb-8">
+        <h2 className="text-purple-400 font-semibold mb-2">Quick Actions</h2>
+        <div className="flex gap-4 flex-wrap">
+          <button className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-md transition">
+            Auto-email Reply
+          </button>
+          <button className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-md transition">
+            Schedule Social Post
+          </button>
+          <button className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-md transition">
+            Assign Task
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Activity Table */}
+      <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 shadow-lg">
+        <h2 className="text-purple-400 font-semibold mb-2">Recent Activity</h2>
+        <table className="w-full text-left text-white">
+          <thead>
+            <tr>
+              <th className="p-2">Type</th>
+              <th className="p-2">Details</th>
+              <th className="p-2">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Example mapping, replace with real Supabase data */}
+            <tr>
+              <td className="p-2">Ticket</td>
+              <td className="p-2">Customer inquiry received</td>
+              <td className="p-2">2025-08-29</td>
+            </tr>
+            <tr>
+              <td className="p-2">AI Task</td>
+              <td className="p-2">Auto-email sent</td>
+              <td className="p-2">2025-08-29</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
