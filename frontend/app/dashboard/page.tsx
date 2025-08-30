@@ -10,27 +10,77 @@ export default function DashboardOverview() {
   useEffect(() => {
     async function loadData() {
       // 1. Conversations today
+      const today = new Date().toISOString().split("T")[0];
       const { count: totalConvos } = await supabase
         .from("conversations")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", new Date().toISOString().split("T")[0]); // today
+        .gte("created_at", today);
 
-      // 2. Avg response time (placeholder for now)
-      const avgResponse = 10;
+      // 2. Avg response time (based on messages table)
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("conversation_id, sender, created_at")
+        .gte("created_at", today)
+        .order("created_at", { ascending: true });
 
-      // 3. Satisfaction rating
-      const { data: feedback } = await supabase.from("feedback").select("rating");
+      let responseTimes: number[] = [];
+      if (messages) {
+        const grouped: { [key: string]: any[] } = {};
+        messages.forEach((m) => {
+          if (!grouped[m.conversation_id]) grouped[m.conversation_id] = [];
+          grouped[m.conversation_id].push(m);
+        });
+
+        for (const convoId in grouped) {
+          const msgs = grouped[convoId];
+          const customerMsg = msgs.find((m) => m.sender === "customer");
+          const agentMsg = msgs.find((m) => m.sender !== "customer");
+          if (customerMsg && agentMsg) {
+            const diff =
+              new Date(agentMsg.created_at).getTime() -
+              new Date(customerMsg.created_at).getTime();
+            responseTimes.push(diff / 1000); // seconds
+          }
+        }
+      }
+      const avgResponse =
+        responseTimes.length > 0
+          ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+          : 0;
+
+      // 3. Satisfaction
+      const { data: feedback } = await supabase
+        .from("feedback")
+        .select("rating");
       const satisfaction =
         feedback && feedback.length > 0
           ? feedback.reduce((a, b) => a + b.rating, 0) / feedback.length
           : 0;
 
-      // 4. Recent conversations
+      // 4. Recent conversations + latest message snippet
       const { data: convos } = await supabase
         .from("conversations")
-        .select("*")
+        .select("id, customer_name, status, created_at")
         .order("created_at", { ascending: false })
         .limit(5);
+
+      let convosWithMessages: any[] = [];
+      if (convos) {
+        for (let convo of convos) {
+          const { data: lastMsg } = await supabase
+            .from("messages")
+            .select("content")
+            .eq("conversation_id", convo.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          convosWithMessages.push({
+            ...convo,
+            lastMessage: lastMsg?.content || "No messages yet",
+          });
+        }
+      }
 
       setStats({
         totalConvos,
@@ -38,75 +88,48 @@ export default function DashboardOverview() {
         satisfaction,
         activeChannels: ["WhatsApp", "Email"], // later dynamic
       });
-      setRecentConvos(convos || []);
+      setRecentConvos(convosWithMessages || []);
     }
     loadData();
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Dashboard Overview</h2>
+    <div>
+      <h2 className="text-xl font-bold mb-4">Dashboard Overview</h2>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-sm text-gray-600">Conversations Today</p>
-          <p className="text-3xl font-bold text-indigo-600">{stats?.totalConvos || 0}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-gray-800 text-white p-4 rounded shadow">
+          <p className="text-sm text-gray-300">Conversations Today</p>
+          <p className="text-2xl font-bold">{stats?.totalConvos || 0}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-sm text-gray-600">Avg Response Time</p>
-          <p className="text-3xl font-bold text-blue-600">{stats?.avgResponse || 0}s</p>
+        <div className="bg-gray-800 text-white p-4 rounded shadow">
+          <p className="text-sm text-gray-300">Avg Response Time</p>
+          <p className="text-2xl font-bold">{stats?.avgResponse.toFixed(1) || 0}s</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-sm text-gray-600">Satisfaction</p>
-          <p className="text-3xl font-bold text-yellow-500">
-            {stats?.satisfaction?.toFixed(1) || 0}/5
-          </p>
+        <div className="bg-gray-800 text-white p-4 rounded shadow">
+          <p className="text-sm text-gray-300">Satisfaction</p>
+          <p className="text-2xl font-bold">{stats?.satisfaction.toFixed(1) || 0}/5</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-sm text-gray-600">Active Channels</p>
-          <p className="text-3xl font-bold text-green-600">
-            {stats?.activeChannels?.length || 0}
-          </p>
+        <div className="bg-gray-800 text-white p-4 rounded shadow">
+          <p className="text-sm text-gray-300">Active Channels</p>
+          <p className="text-2xl font-bold">{stats?.activeChannels?.length || 0}</p>
         </div>
       </div>
 
       {/* Recent Conversations */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-          Recent Conversations
-        </h3>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-left text-gray-600 border-b">
-              <th className="py-2">Customer</th>
-              <th className="py-2">Status</th>
-              <th className="py-2">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentConvos.map((c) => (
-              <tr key={c.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 text-gray-800">{c.customer_name}</td>
-                <td
-                  className={`py-3 font-medium ${
-                    c.status === "Resolved"
-                      ? "text-green-600"
-                      : c.status === "Pending"
-                      ? "text-yellow-600"
-                      : "text-blue-600"
-                  }`}
-                >
-                  {c.status}
-                </td>
-                <td className="py-3 text-gray-500">
-                  {new Date(c.created_at).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <h3 className="text-lg font-semibold mb-2">Recent Conversations</h3>
+      <ul className="bg-gray-800 text-white rounded shadow divide-y divide-gray-700">
+        {recentConvos.map((c) => (
+          <li key={c.id} className="p-3">
+            <div className="flex justify-between">
+              <span className="font-semibold">{c.customer_name}</span>
+              <span className="text-sm text-gray-400">{c.status}</span>
+            </div>
+            <p className="text-sm text-gray-300 mt-1 truncate">{c.lastMessage}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
