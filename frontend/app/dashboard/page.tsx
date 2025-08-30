@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState<any>(null);
   const [recentConvos, setRecentConvos] = useState<any[]>([]);
+  const [aiVsAgent, setAiVsAgent] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -82,6 +84,21 @@ export default function DashboardOverview() {
         }
       }
 
+      // 5. AI vs Agent chart data
+      const { data: allMessages } = await supabase
+        .from("messages")
+        .select("sender");
+
+      const counts: Record<string, number> = {};
+      allMessages?.forEach((msg) => {
+        counts[msg.sender] = (counts[msg.sender] || 0) + 1;
+      });
+
+      const chartData = [
+        { name: "AI", value: counts["AI"] || 0 },
+        { name: "Agent", value: counts["Agent"] || 0 },
+      ];
+
       setStats({
         totalConvos,
         avgResponse,
@@ -89,6 +106,7 @@ export default function DashboardOverview() {
         activeChannels: ["WhatsApp", "Email"], // later dynamic
       });
       setRecentConvos(convosWithMessages || []);
+      setAiVsAgent(chartData);
     }
     loadData();
   }, []);
@@ -115,6 +133,19 @@ export default function DashboardOverview() {
           <p className="text-sm text-gray-300">Active Channels</p>
           <p className="text-2xl font-bold">{stats?.activeChannels?.length || 0}</p>
         </div>
+      </div>
+
+      {/* AI vs Agent Messages */}
+      <div className="bg-gray-800 p-4 rounded shadow mb-6">
+        <h3 className="text-lg font-semibold text-white mb-4">AI vs Agent Messages</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={aiVsAgent}>
+            <XAxis dataKey="name" stroke="#ccc" />
+            <YAxis allowDecimals={false} stroke="#ccc" />
+            <Tooltip />
+            <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Recent Conversations */}
