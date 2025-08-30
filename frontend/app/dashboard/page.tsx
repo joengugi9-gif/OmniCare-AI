@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import TicketsFeed from "@/components/TicketsFeed";
 
 function KpiCard({ title, value, icon }: { title: string; value: number; icon: string }) {
@@ -19,61 +19,36 @@ function KpiCard({ title, value, icon }: { title: string; value: number; icon: s
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState(0);
   const [openTickets, setOpenTickets] = useState(0);
-  const [revenue, setRevenue] = useState(0);
-  const [aiTasks, setAiTasks] = useState(0);
-  const [salesData, setSalesData] = useState<any[]>([]);
   const [ticketsData, setTicketsData] = useState<any[]>([]);
 
   useEffect(() => {
     const checkSessionAndFetch = async () => {
-      // ✅ Check session first
+      // ✅ Check session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
         return;
       }
 
-      // Fetch data only if logged in
       try {
-        // Customers
-        const { count: customerCount } = await supabase
-          .from("customers")
-          .select("*", { count: "exact" });
-        setCustomers(customerCount || 0);
-
-        // Open tickets
+        // Open tickets count
         const { count: ticketsCount } = await supabase
           .from("tickets")
           .select("*", { count: "exact" })
           .eq("status", "open");
         setOpenTickets(ticketsCount || 0);
 
-        // Revenue
-        const { data: sales } = await supabase.from("sales").select("amount");
-        const totalRevenue = sales?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0;
-        setRevenue(totalRevenue);
-
-        // AI tasks
-        const { count: tasksCount } = await supabase
-          .from("ai_tasks")
-          .select("*", { count: "exact" })
-          .eq("status", "completed");
-        setAiTasks(tasksCount || 0);
-
-        // Sales chart
-        const salesChartData =
-          sales?.map((s: any, i: number) => ({ day: `Day ${i + 1}`, amount: s.amount })) || [];
-        setSalesData(salesChartData);
-
         // Tickets chart
         const { data: tickets } = await supabase.from("tickets").select("created_at");
         const ticketsChartData =
-          tickets?.map((t: any, i: number) => ({ day: `Day ${i + 1}`, tickets: 1 })) || [];
+          tickets?.map((t: any, i: number) => ({
+            day: `Day ${i + 1}`,
+            tickets: 1,
+          })) || [];
         setTicketsData(ticketsChartData);
       } catch (err) {
-        console.error("Error fetching dashboard:", err);
+        console.error("Error fetching tickets:", err);
       } finally {
         setLoading(false);
       }
@@ -88,7 +63,27 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 pt-24 bg-gradient-to-br from-gray-900 via-purple-900 to-black min-h-screen text-white">
-      {/* ... your same dashboard JSX ... */}
+      <h1 className="text-3xl font-bold mb-6">Tickets Dashboard</h1>
+
+      {/* KPI */}
+      <div className="flex gap-4 mb-8">
+        <KpiCard title="Open Tickets" value={openTickets} icon="🎫" />
+      </div>
+
+      {/* Tickets Chart */}
+      <div className="bg-black/40 backdrop-blur-md rounded-xl p-6 shadow-lg mb-8">
+        <h2 className="text-xl font-semibold mb-4">Tickets Over Time</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={ticketsData}>
+            <XAxis dataKey="day" stroke="#aaa" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="tickets" fill="#a855f7" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Tickets Feed */}
       <TicketsFeed />
     </div>
   );
