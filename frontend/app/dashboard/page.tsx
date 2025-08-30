@@ -1,90 +1,104 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
-import TicketsFeed from "@/components/TicketsFeed";
+import { useState } from "react";
+import { BarChart3, MessageSquare, BookOpen, Settings, Plug, Home } from "lucide-react";
 
-function KpiCard({ title, value, icon }: { title: string; value: number; icon: string }) {
-  return (
-    <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 flex flex-col items-center w-40 shadow-lg">
-      <div className="text-purple-400 text-3xl mb-2">{icon}</div>
-      <div className="text-white font-semibold text-lg">{title}</div>
-      <div className="text-white font-bold text-xl">{value}</div>
-    </div>
-  );
-}
+const menuItems = [
+  { name: "Dashboard", icon: <Home size={20} />, id: "dashboard" },
+  { name: "Conversations", icon: <MessageSquare size={20} />, id: "conversations" },
+  { name: "Knowledge Base", icon: <BookOpen size={20} />, id: "knowledge" },
+  { name: "Analytics", icon: <BarChart3 size={20} />, id: "analytics" },
+  { name: "Integrations", icon: <Plug size={20} />, id: "integrations" },
+  { name: "Settings", icon: <Settings size={20} />, id: "settings" },
+];
 
 export default function Dashboard() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [openTickets, setOpenTickets] = useState(0);
-  const [ticketsData, setTicketsData] = useState<any[]>([]);
-
-  useEffect(() => {
-    const checkSessionAndFetch = async () => {
-      // ✅ Check session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        // Open tickets count
-        const { count: ticketsCount } = await supabase
-          .from("tickets")
-          .select("*", { count: "exact" })
-          .eq("status", "open");
-        setOpenTickets(ticketsCount || 0);
-
-        // Tickets chart
-        const { data: tickets } = await supabase.from("tickets").select("created_at");
-        const ticketsChartData =
-          tickets?.map((t: any, i: number) => ({
-            day: `Day ${i + 1}`,
-            tickets: 1,
-          })) || [];
-        setTicketsData(ticketsChartData);
-      } catch (err) {
-        console.error("Error fetching tickets:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkSessionAndFetch();
-  }, [router]);
-
-  if (loading) {
-    return <div className="text-white p-6">Loading dashboard...</div>;
-  }
+  const [activePage, setActivePage] = useState("dashboard");
 
   return (
-    <div className="p-6 pt-24 bg-gradient-to-br from-gray-900 via-purple-900 to-black min-h-screen text-white">
-      <h1 className="text-3xl font-bold mb-6">Tickets Dashboard</h1>
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white shadow-lg flex flex-col">
+        <div className="p-6 font-bold text-xl text-blue-600 border-b">
+          Omnicare AI
+        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActivePage(item.id)}
+              className={`flex items-center space-x-2 w-full px-3 py-2 rounded-lg text-left hover:bg-blue-50 ${
+                activePage === item.id ? "bg-blue-100 text-blue-600" : "text-gray-700"
+              }`}
+            >
+              {item.icon}
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      {/* KPI */}
-      <div className="flex gap-4 mb-8">
-        <KpiCard title="Open Tickets" value={openTickets} icon="🎫" />
+      {/* Main content */}
+      <div className="flex-1 flex flex-col">
+        {/* Topbar */}
+        <header className="h-16 bg-white shadow flex items-center justify-between px-6">
+          <h1 className="text-lg font-semibold capitalize">{activePage}</h1>
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-600">Hello, Admin</span>
+            <img
+              src="https://ui-avatars.com/api/?name=Admin"
+              alt="avatar"
+              className="w-8 h-8 rounded-full"
+            />
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          {activePage === "dashboard" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Overview</h2>
+              {/* Here we’ll place Quick Stats, Recent Conversations, AI Performance chart */}
+              <p className="text-gray-500">Dashboard Overview content goes here...</p>
+            </div>
+          )}
+
+          {activePage === "conversations" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Conversations</h2>
+              <p className="text-gray-500">Live chat management will go here...</p>
+            </div>
+          )}
+
+          {activePage === "knowledge" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Knowledge Base</h2>
+              <p className="text-gray-500">Knowledge articles & training content...</p>
+            </div>
+          )}
+
+          {activePage === "analytics" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Analytics</h2>
+              <p className="text-gray-500">Charts & insights go here...</p>
+            </div>
+          )}
+
+          {activePage === "integrations" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Integrations</h2>
+              <p className="text-gray-500">Connect WhatsApp, Instagram, Email, etc...</p>
+            </div>
+          )}
+
+          {activePage === "settings" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4">Settings</h2>
+              <p className="text-gray-500">Company branding, AI personality, user management...</p>
+            </div>
+          )}
+        </main>
       </div>
-
-      {/* Tickets Chart */}
-      <div className="bg-black/40 backdrop-blur-md rounded-xl p-6 shadow-lg mb-8">
-        <h2 className="text-xl font-semibold mb-4">Tickets Over Time</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={ticketsData}>
-            <XAxis dataKey="day" stroke="#aaa" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="tickets" fill="#a855f7" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Tickets Feed */}
-      <TicketsFeed />
     </div>
   );
 }
