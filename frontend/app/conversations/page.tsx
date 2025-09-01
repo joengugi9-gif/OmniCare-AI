@@ -8,81 +8,100 @@ export default function ConversationsPage() {
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
 
-  // Fetch conversations when page loads
+  // Load conversations
   useEffect(() => {
     const loadConversations = async () => {
-      const { data } = await supabase.from("conversations").select("*");
-      setConversations(data || []);
+      const { data, error } = await supabase.from("conversations").select("*");
+      if (error) console.error(error);
+      else setConversations(data);
     };
     loadConversations();
   }, []);
 
-  // Load messages for a selected conversation
-  const loadMessages = async (conversationId: string) => {
-    setSelectedConversation(conversationId);
+  // Load messages for selected conversation
+  useEffect(() => {
+    if (!selectedConversation) return;
 
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", selectedConversation.id)
+        .order("created_at", { ascending: true });
+      if (error) console.error(error);
+      else setMessages(data);
+    };
+    loadMessages();
 
-    setMessages(data || []);
-
-    // ✅ Subscribe to new messages in real-time
+    // Subscribe to real-time updates
     const channel = supabase
-      .channel("realtime-messages")
+      .channel("messages-channel")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${selectedConversation.id}`,
+        },
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
         }
       )
       .subscribe();
 
-    // cleanup when switching conversation or leaving page
     return () => {
       supabase.removeChannel(channel);
     };
-  };
+  }, [selectedConversation]);
 
   return (
-    <div className="flex h-screen">
-      {/* Left side: conversations list */}
-      <div className="w-1/3 border-r bg-gray-50">
-        <h2 className="p-4 font-bold">Conversations</h2>
+    <div className="flex h-screen bg-gray-900 text-gray-100">
+      {/* Sidebar: Conversations */}
+      <div className="w-1/4 border-r border-gray-700 p-4 overflow-y-auto">
+        <h2 className="text-xl font-semibold mb-4 text-purple-400">Conversations</h2>
         <ul>
           {conversations.map((conv) => (
             <li
               key={conv.id}
-              className={`p-3 cursor-pointer hover:bg-gray-200 ${
-                selectedConversation === conv.id ? "bg-gray-300" : ""
+              onClick={() => setSelectedConversation(conv)}
+              className={`p-3 mb-2 rounded cursor-pointer ${
+                selectedConversation?.id === conv.id
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-800 hover:bg-gray-700"
               }`}
-              onClick={() => loadMessages(conv.id)}
             >
-              {conv.customer_name}
+              <span className="font-medium text-purple-300">{conv.customer_name}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Right side: messages */}
-      <div className="flex-1 p-4">
+      {/* Messages */}
+      <div className="flex-1 flex flex-col p-4">
         {selectedConversation ? (
-          <div>
-            <h3 className="font-semibold mb-2">Messages</h3>
-            <div className="space-y-2">
+          <>
+            <h3 className="text-lg font-semibold text-purple-400 mb-4">
+              {selectedConversation.customer_name}
+            </h3>
+            <div className="flex-1 overflow-y-auto space-y-2">
               {messages.map((msg) => (
-                <div key={msg.id} className="p-2 rounded bg-gray-100">
-                  <span className="font-semibold">{msg.sender}: </span>
-                  {msg.content}
+                <div
+                  key={msg.id}
+                  className={`p-3 rounded-lg max-w-md ${
+                    msg.sender === "agent"
+                      ? "bg-purple-600 text-white self-end ml-auto"
+                      : "bg-gray-700 text-gray-100"
+                  }`}
+                >
+                  <p className="font-semibold text-sm text-purple-200 mb-1">{msg.sender}</p>
+                  <p>{msg.content}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </>
         ) : (
-          <p>Select a conversation to view messages</p>
+          <p className="text-gray-400">Select a conversation to view messages.</p>
         )}
       </div>
     </div>
