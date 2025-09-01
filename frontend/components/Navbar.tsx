@@ -37,23 +37,26 @@ export default function Navbar() {
       <div className="flex items-center space-x-4">
         {user ? (
           <>
-            {/* Display avatar if exists */}
-            {user.user_metadata?.avatar_url ? (
+            {/* Avatar */}
+            {user.user_metadata?.avatar_url && (
               <img
                 src={user.user_metadata.avatar_url}
                 alt="avatar"
                 className="w-8 h-8 rounded-full"
               />
-            ) : null}
+            )}
 
-            {/* Display name or email prefix */}
+            {/* Name or email */}
             <span className="text-purple-300 font-semibold">
               {user.user_metadata?.full_name || user.email.split("@")[0]}
             </span>
 
-            {/* Navigation links for logged-in users */}
+            {/* Main navigation */}
             <Link href="/dashboard" className="hover:text-purple-300 transition">
               Dashboard
+            </Link>
+            <Link href="/conversations" className="hover:text-purple-300 transition">
+              Conversations
             </Link>
             <Link href="/profile" className="hover:text-purple-300 transition">
               Profile
@@ -61,6 +64,8 @@ export default function Navbar() {
             <Link href="/chat" className="hover:text-purple-300 transition">
               Chat
             </Link>
+
+            {/* Logout */}
             <button onClick={handleLogout} className="hover:text-red-400 transition">
               Logout
             </button>

@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -7,6 +6,7 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
 
   // Load conversations
   useEffect(() => {
@@ -55,6 +55,35 @@ export default function ConversationsPage() {
     };
   }, [selectedConversation]);
 
+  // ✅ AI reply integration
+  const sendMessage = async (content: string) => {
+    if (!selectedConversation) return;
+
+    // Save customer message first
+    await supabase.from("messages").insert({
+      conversation_id: selectedConversation.id,
+      sender: "customer",
+      message: content,
+    });
+
+    // Call AI function
+    const res = await fetch("/functions/v1/ai-reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: content }),
+    });
+    const data = await res.json();
+
+    // Save AI reply
+    await supabase.from("messages").insert({
+      conversation_id: selectedConversation.id,
+      sender: "ai",
+      message: data.reply,
+    });
+
+    setNewMessage("");
+  };
+
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
       {/* Sidebar: Conversations */}
@@ -91,13 +120,33 @@ export default function ConversationsPage() {
                   className={`p-3 rounded-lg max-w-md ${
                     msg.sender === "agent"
                       ? "bg-purple-600 text-white self-end ml-auto"
+                      : msg.sender === "ai"
+                      ? "bg-green-600 text-white"
                       : "bg-gray-700 text-gray-100"
                   }`}
                 >
-                  <p className="font-semibold text-sm text-purple-200 mb-1">{msg.sender}</p>
-                  <p>{msg.content}</p>
+                  <p className="font-semibold text-sm text-purple-200 mb-1 capitalize">{msg.sender}</p>
+                  <p>{msg.message}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Input box */}
+            <div className="mt-4 flex">
+              <input
+                type="text"
+                className="flex-1 p-2 rounded-l bg-gray-800 border border-gray-700 text-white"
+                placeholder="Type a message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage(newMessage)}
+              />
+              <button
+                onClick={() => sendMessage(newMessage)}
+                className="bg-purple-600 p-2 rounded-r hover:bg-purple-700"
+              >
+                Send
+              </button>
             </div>
           </>
         ) : (
